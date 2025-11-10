@@ -1,14 +1,16 @@
 flowchart TD
-  Start[Landing Page]
-  SignUpPage[Sign Up Page]
-  SignInPage[Sign In Page]
-  AuthAPI[Authentication API Endpoint]
-  DashboardPage[Dashboard Page]
-  Start -->|Select Sign Up| SignUpPage
-  Start -->|Select Sign In| SignInPage
-  SignUpPage -->|Submit Credentials| AuthAPI
-  SignInPage -->|Submit Credentials| AuthAPI
-  AuthAPI -->|Success| DashboardPage
-  AuthAPI -->|Error| SignUpPage
-  AuthAPI -->|Error| SignInPage
-  DashboardPage -->|Click Logout| Start
+    A[SignIn Page] --> B[Auth Verify]
+    B --> C[Dashboard]
+    C --> D[Transactions New]
+    C --> E[Master Data]
+    C --> F[Reports]
+    D --> G[Transaction Form]
+    G --> H[Fetch Rate]
+    G --> I[Calculate IDR]
+    G --> J[Submit Transaction]
+    J --> K[API Route]
+    K --> L[Validate Data]
+    L --> M[Record Transaction]
+    M --> N[Update Inventory]
+    N --> O[Generate PDF]
+    O --> P[Success Page]
