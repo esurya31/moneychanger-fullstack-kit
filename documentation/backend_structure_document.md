@@ -1,179 +1,246 @@
-# Backend Structure Document
+# Backend Structure Document for moneychanger-fullstack-kit
 
-This document outlines the backend architecture, hosting, and infrastructure for the **codeguide-starter** project. It uses plain language so anyone can understand how the backend is set up and how it supports the application.
+This document outlines the backend setup for the moneychanger-fullstack-kit. It covers the overall architecture, database choices, API design, hosting, security, and more. You don’t need a deep technical background to follow along—it’s written in everyday language.
 
 ## 1. Backend Architecture
 
-- **Framework and Design Pattern**
-  - We use **Next.js API Routes** to handle all server-side logic. These routes live alongside the frontend code in the same repository, making development and deployment simpler.
-  - The backend follows a **layered pattern**:
-    1. **API Layer**: Receives requests (login, registration, data fetch).  
-    2. **Service Layer**: Contains the core business logic (user validation, password hashing).  
-    3. **Data Access Layer**: Talks to the database via a simple ORM (e.g., Prisma or TypeORM).
+**Overview**
+- We use Next.js API Routes to handle all server-side logic. That means our backend lives alongside our frontend in one codebase.  
+- Authentication is powered by Better Auth, which plugs smoothly into Next.js.  
+- Drizzle ORM connects our API routes to a PostgreSQL database in a type-safe way.
 
-- **Scalability**
-  - Stateless API routes can scale horizontally—new instances can spin up on demand.  
-  - We can add caching or a message queue (e.g., Redis or RabbitMQ) without changing the core code.
+**Key design patterns and frameworks**
+- **Serverless functions:** Each API route in Next.js acts like a small serverless function.  
+- **ORM (Object-Relational Mapping):** Drizzle ORM maps JavaScript/TypeScript code to SQL statements, reducing manual SQL and preventing type mismatches.  
+- **Modular folder structure:**  
+  • `/app/api` for API code  
+  • `/db/schema` for database definitions  
+  • `/lib` for helper utilities  
+  • `/components` for shared UI building blocks
 
-- **Maintainability**
-  - Code for each feature is grouped by route (authentication, dashboard).  
-  - A service layer separates complex logic from request handling.
-
-- **Performance**
-  - Lightweight Node.js handlers keep response times low.  
-  - Future use of database connection pooling and Redis for caching repeated queries.
+**Scalability, maintainability, performance**
+- **Scalability:** Next.js functions can scale horizontally: if traffic increases, the hosting platform (e.g., Vercel or AWS Lambda) spins up more instances.  
+- **Maintainability:** Clear separation of concerns—database schemas, utility functions, and API logic live in dedicated folders.  
+- **Performance:** Serverless functions start quickly on demand. Database queries run via Drizzle’s optimized queries.
 
 ## 2. Database Management
 
-- **Database Choice**
-  - We recommend **PostgreSQL** for structured data and reliable transactions.  
-  - In-memory caching can be added later with **Redis** for session tokens or frequently read data.
+**Database technology**
+- Type: Relational (SQL)  
+- System: PostgreSQL
 
-- **Data Storage and Access**
-  - Use an ORM like **Prisma** or **TypeORM** to map JavaScript/TypeScript objects to database tables.
-  - Connection pooling ensures efficient use of database connections under load.
-  - Migrations track schema changes over time, keeping development, staging, and production in sync.
+**How data is structured, stored, and accessed**
+- Tables for currencies, customers, transactions, inventory denominations, audit logs, and users.  
+- Drizzle ORM defines these schemas in TypeScript and translates them to SQL automatically.  
+- Querying: API routes call Drizzle’s query methods (`db.insert`, `db.select`, etc.) to read or write data.
 
-- **Data Practices**
-  - Passwords are never stored in plain text—they are salted and hashed with **bcrypt** before saving.
-  - All outgoing data is typed and validated to prevent malformed records.
+**Data management practices**
+- **Migrations:** Any changes to schema are tracked and applied via migration scripts.  
+- **Transactions:** Critical operations (like recording a transaction and updating inventory) run inside database transactions to keep data consistent.  
+- **Backups:** Regular backups of the PostgreSQL database ensure you can restore data in case of a failure.
 
 ## 3. Database Schema
 
-### Human-Readable Format
+Below is a human-readable description of each table, followed by SQL definitions.
 
-- **Users**
-  - **id**: Unique identifier  
-  - **email**: User’s email address (unique)  
-  - **password_hash**: Securely hashed password  
-  - **created_at**: Account creation timestamp
+Currencies:
+- code: unique currency code (e.g., USD)
+- name: full name of the currency (e.g., US Dollar)
+- rate_beli: buy rate (how much IDR to pay when buying foreign currency)
+- rate_jual: sell rate (how much IDR to charge when selling foreign currency)
 
-- **Sessions**
-  - **id**: Unique session record  
-  - **user_id**: Links to a user  
-  - **token**: Random string for authentication  
-  - **expires_at**: When the token stops working  
-  - **created_at**: When the session was created
+Customers:
+- id: unique customer identifier
+- name: customer’s full name
+- identity_number: ID or passport number
+- country: customer’s country of origin
 
-- **DashboardItems** *(optional for dynamic data)*
-  - **id**: Unique record  
-  - **title**: Item title  
-  - **content**: Item details  
-  - **created_at**: When the item was added
+Transactions:
+- id: unique transaction number
+- date: timestamp of the transaction
+- type: “buy” or “sell”
+- foreign_amount: amount in foreign currency
+- exchange_rate: rate applied
+- value_idr: computed value in IDR
+- user_id: who performed the transaction
 
-### SQL Schema (PostgreSQL)
+Inventory Denominations:
+- id: record identifier
+- currency_code: links to Currencies.code
+- denomination: bill or coin value (e.g., 100)
+- quantity: how many pieces available
+
+Audit Logs:
+- id: record identifier
+- user_id: who took the action
+- action: description of what happened
+- timestamp: when it happened
+
+Users:
+- id: unique user identifier
+- email: login email
+- password_hash: secured password value
+- role: Admin, Kasir, or Auditor
+
+**SQL Schema (PostgreSQL)**
 ```sql
--- Users table
+-- Currencies
+CREATE TABLE currencies (
+  code         VARCHAR(3)   PRIMARY KEY,
+  name         TEXT         NOT NULL,
+  rate_beli    NUMERIC(12,4) NOT NULL,
+  rate_jual    NUMERIC(12,4) NOT NULL
+);
+
+-- Customers
+CREATE TABLE customers (
+  id                 SERIAL       PRIMARY KEY,
+  name               TEXT         NOT NULL,
+  identity_number    TEXT         NOT NULL UNIQUE,
+  country            TEXT         NOT NULL
+);
+
+-- Users
 CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
+  id               SERIAL       PRIMARY KEY,
+  email            TEXT         NOT NULL UNIQUE,
+  password_hash    TEXT         NOT NULL,
+  role             TEXT         NOT NULL  -- e.g., 'Admin', 'Kasir', 'Auditor'
 );
 
--- Sessions table
-CREATE TABLE sessions (
-  id SERIAL PRIMARY KEY,
-  user_id INT REFERENCES users(id) ON DELETE CASCADE,
-  token VARCHAR(255) UNIQUE NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- Transactions
+CREATE TABLE transactions (
+  id               SERIAL       PRIMARY KEY,
+  date             TIMESTAMP    NOT NULL DEFAULT now(),
+  type             TEXT         NOT NULL,
+  foreign_amount   NUMERIC(14,4) NOT NULL,
+  exchange_rate    NUMERIC(12,4) NOT NULL,
+  value_idr        NUMERIC(16,2) NOT NULL,
+  user_id          INTEGER      NOT NULL REFERENCES users(id)
 );
 
--- Dashboard items table
-CREATE TABLE dashboard_items (
-  id SERIAL PRIMARY KEY,
-  title TEXT NOT NULL,
-  content TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- Inventory Denominations
+CREATE TABLE inventory_denominations (
+  id               SERIAL       PRIMARY KEY,
+  currency_code    VARCHAR(3)   NOT NULL REFERENCES currencies(code),
+  denomination     INTEGER      NOT NULL,
+  quantity         INTEGER      NOT NULL
+);
+
+-- Audit Logs
+CREATE TABLE audit_logs (
+  id               SERIAL       PRIMARY KEY,
+  user_id          INTEGER      NOT NULL REFERENCES users(id),
+  action           TEXT         NOT NULL,
+  timestamp        TIMESTAMP    NOT NULL DEFAULT now()
 );
 ```  
 
 ## 4. API Design and Endpoints
 
-- **Approach**: We follow a **RESTful** style, grouping related endpoints under `/api` directories.
+**Approach**
+- We follow a RESTful style using Next.js API Routes under `/app/api`.  
+- Each endpoint maps to a specific resource (e.g., `/api/transactions`).
 
-- **Key Endpoints**
-  - `POST /api/auth/register`  
-    • Accepts `{ email, password }`  
-    • Creates a new user and issues a session token  
-  - `POST /api/auth/login`  
-    • Accepts `{ email, password }`  
-    • Verifies credentials and returns a session token  
-  - `POST /api/auth/logout`  
-    • Invalidates the session token on the server  
-  - `GET /api/dashboard/data`  
-    • Requires a valid session  
-    • Returns user-specific data or dashboard items  
+**Key endpoints**
+- **Authentication**  
+  • POST `/api/auth/sign-in`: log in and receive a session token  
+  • POST `/api/auth/sign-out`: end the session
+- **Users**  
+  • GET `/api/users/me`: get current user’s info (including role)  
+  • GET `/api/users` (Admin only): list all users
+- **Currencies**  
+  • GET `/api/currencies`: list all currencies and rates  
+  • POST `/api/currencies`: add a new currency (Admin)  
+  • PUT `/api/currencies/[code]`: update rates (Admin)
+- **Customers**  
+  • GET `/api/customers`: list customers  
+  • POST `/api/customers`: add a new customer
+- **Transactions**  
+  • GET `/api/transactions`: list past transactions (filter by date, type)  
+  • POST `/api/transactions`: record a new transaction  
+  • GET `/api/transactions/[id]`: get details of a specific transaction
+- **Inventory**  
+  • GET `/api/inventory`: show all denominations and quantities  
+  • PUT `/api/inventory/[id]`: adjust stock (Admin)
+- **Audit Logs**  
+  • GET `/api/audit-logs`: list recent actions (Admin/Auditor)
 
-- **Communication**
-  - Frontend sends JSON requests; backend replies with JSON and appropriate HTTP status codes.  
-  - Protected routes check for a valid session token (in cookies or Authorization header).
+Each route includes validation, role checks, and error handling to keep data accurate and secure.
 
 ## 5. Hosting Solutions
 
-- **Cloud Provider**:  
-  - **Vercel** (recommended) offers seamless Next.js deployments, auto-scaling, and built-in CDN.  
-  - Alternatively, **Netlify** or any Node.js-capable host will work.
+We recommend a cloud-based, serverless-friendly setup:
 
-- **Benefits**
-  - **Reliability**: Global servers and failover across regions.  
-  - **Scalability**: Auto-scale serverless functions based on traffic.  
-  - **Cost-Effectiveness**: Pay-per-use model means low cost for small projects.
+**Application Hosting**
+- **Vercel** (ideal for Next.js):  
+  • Automatic deployment on push  
+  • Built-in serverless functions for API routes  
+  • Global CDN for static assets and edge caching
+
+**Database Hosting**
+- **Supabase** or **Amazon RDS (PostgreSQL)**:  
+  • Managed backups, scaling, and high availability  
+  • Secure connections (SSL)
+
+**Benefits**
+- **Reliability:** Managed services reduce downtime risk.  
+- **Scalability:** Both Vercel and RDS/Supabase auto-scale to handle traffic spikes.  
+- **Cost-effectiveness:** Pay-as-you-go pricing helps control costs.
 
 ## 6. Infrastructure Components
 
-- **Load Balancer**
-  - Provided by the hosting platform—distributes API requests across function instances.
+**Load Balancer / Edge Network**
+- Vercel’s global edge network automatically routes users to the closest serverless location.  
 
-- **CDN (Content Delivery Network)**
-  - Vercel’s global edge network caches static assets (CSS, JS, images) for faster page loads.
+**Caching Mechanisms**
+- **Static assets:** Served from Vercel’s CDN for instant load times.  
+- **API responses:** We can configure HTTP caching headers (e.g., `Cache-Control`) on GET routes like `/api/currencies`.
 
-- **Caching**
-  - **Redis** (optional) for session storage or caching dashboard queries to reduce database load.
+**Content Delivery Network (CDN)**
+- Vercel’s CDN caches pages and static files worldwide, reducing latency for users everywhere.
 
-- **Object Storage**
-  - For file uploads or backups, integrate with AWS S3 or similar services.
-
-- **Message Queue**
-  - In future, use **RabbitMQ** or **Kafka** for background tasks (e.g., email notifications).
+**Containerization (Development)**
+- Docker and Docker Compose create a reproducible local environment with Node.js and PostgreSQL.
 
 ## 7. Security Measures
 
-- **Authentication & Authorization**
-  - Passwords hashed with **bcrypt** and salted.  
-  - Session tokens stored in secure, HttpOnly cookies or Authorization headers.  
-  - Protected endpoints verify tokens before proceeding.
+**Authentication & Authorization**
+- **Better Auth** handles secure login, session cookies, and token management.  
+- **Role-Based Access Control (RBAC):** Middleware checks user roles (Admin, Kasir, Auditor) before allowing access to protected routes.
 
-- **Data Encryption**
-  - **HTTPS/TLS** encrypts data in transit.  
-  - Database connections use SSL to encrypt data between the app and the database.
+**Data Encryption**
+- **In transit:** All traffic uses HTTPS/TLS.  
+- **At rest:** Managed databases typically encrypt stored data automatically.
 
-- **Input Validation**
-  - Every incoming request is validated (e.g., valid email format, password length) to prevent SQL injection or other attacks.
+**Environment Variables**
+- Store secrets (DB URLs, API keys) in environment files (`.env`) or hosting platform secret stores.
 
-- **Web Security Best Practices**
-  - Enable **CORS** policies to limit allowed origins.  
-  - Use **CSRF tokens** or same-site cookies to prevent cross-site requests.  
-  - Set secure headers with **Helmet** or a similar middleware.
+**Input Validation & Sanitization**
+- Every API route validates the incoming data shape and value ranges to prevent bad data and SQL injection.
 
 ## 8. Monitoring and Maintenance
 
-- **Performance Monitoring**
-  - Integrate **Sentry** or **LogRocket** for real-time crash reporting and performance tracing.  
-  - Use Vercel’s built-in analytics to track request latencies and error rates.
+**Monitoring Tools**
+- **Vercel Analytics:** Tracks serverless function performance and latency.  
+- **Database monitoring (Supabase or AWS CloudWatch):** Monitors query times, connection counts, and errors.
 
-- **Logging**
-  - Structured logs (JSON) for all API requests and errors, shipped to a log management service like **Datadog** or **Logflare**.
+**Logging**
+- API routes log errors and important events. Logs can be forwarded to services like Sentry or Datadog.
 
-- **Health Checks**
-  - Define a `/health` endpoint that returns a 200 status if the service is up and the database is reachable.
-
-- **Maintenance Strategies**
-  - Automated migrations run on deploy to keep the database schema up to date.  
-  - Scheduled dependency audits and security scans (e.g., `npm audit`).
-  - Regular backups of the database (daily or weekly depending on usage).
+**Maintenance Strategies**
+- **Scheduled backups:** Automated daily backups of the database.  
+- **Dependency updates:** Regularly update Next.js, Drizzle, and other libraries to get security patches.  
+- **Health checks:** Use automated scripts or services to ping a health-check endpoint (`/api/health`) and alert if downtime occurs.
 
 ## 9. Conclusion and Overall Backend Summary
 
-The backend for **codeguide-starter** is built on Next.js API Routes and Node.js, paired with PostgreSQL for data and optional Redis for caching. It follows a clear layered architecture that keeps code easy to maintain and extend. With RESTful endpoints for authentication and data, secure practices like password hashing and HTTPS, and hosting on Vercel for scalability and global performance, this setup meets the project’s goals for a fast, secure, and developer-friendly foundation. Future enhancements—such as background job queues, advanced monitoring, or richer data models—can be added without disrupting the core structure.
+The backend for the moneychanger-fullstack-kit is built on a modern, integrated stack:
+
+- **Next.js API Routes** for serverless, scalable functions  
+- **Better Auth** for secure, role-based user management  
+- **PostgreSQL + Drizzle ORM** for reliable, type-safe data handling  
+- **Vercel + Managed DB** for effortless deployment and scaling  
+- **Clear separation of folders** to keep code maintainable
+
+This setup aligns perfectly with the needs of a Money Changer system: secure transaction processing, flexible role control, real-time data access, and easy growth as your user base or transaction volume increases. With these components in place, your team can focus on implementing business-specific logic—like exchange rate feeds, PDF receipts, and comprehensive reporting—without worrying about boilerplate infrastructure.

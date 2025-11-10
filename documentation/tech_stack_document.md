@@ -1,90 +1,126 @@
-# Tech Stack Document
+# Tech Stack Document for Moneychanger Fullstack Kit
 
-This document explains the key technologies chosen for the **codeguide-starter** project. It’s written in everyday language so anyone—technical or not—can understand why each tool was picked and how it supports the application.
+This document explains, in everyday language, the technology choices behind the `moneychanger-fullstack-kit`. It’s designed to help you understand why each tool was chosen, how it works together, and what benefits it brings to building a modern, secure money exchanger application.
 
-## 1. Frontend Technologies
-The frontend is everything the user sees and interacts with. For this project, we’ve used:
+## Frontend Technologies
+
+We chose these tools to create a fast, responsive, and user-friendly interface:
 
 - **Next.js (App Router)**
-  - A React framework that makes page routing, server-side rendering, and API routes very simple.
-  - Enhances user experience by pre-rendering pages on the server or at build time, leading to faster initial load.
-- **React 18**
-  - The underlying library for building user interfaces with reusable components.
-  - Provides a smooth, interactive experience thanks to its virtual DOM and modern hooks.
+  - Provides both client-side and server-side rendering. Pages load quickly, and we can securely handle data (like exchange rates) on the server.
+  - Built-in routing makes it easy to organize sections like `Sign In`, `Dashboard`, and sub-pages for transactions or reports.
+
 - **TypeScript**
-  - A superset of JavaScript that adds types (labels for data).
-  - Helps catch errors early during development and makes the code easier to maintain.
-- **CSS (globals.css & theme.css)**
-  - **globals.css** applies base styles (fonts, colors, resets) across the entire app.
-  - **dashboard/theme.css** defines the look and feel specific to the dashboard area.
-  - This separation keeps styles organized and avoids accidental style conflicts.
+  - Adds “types” to JavaScript so we catch mistakes early (e.g., mixing up a currency code with a customer name).
+  - Especially important in finance, where a small typo in a calculation can lead to big errors.
 
-By combining these tools, we have a clear structure (Next.js folders for pages and layouts), safer code (TypeScript), and flexible styling with vanilla CSS.
+- **React 19**
+  - The core library for building interactive UIs. We create components for forms, tables, buttons, and more.
 
-## 2. Backend Technologies
-The backend handles data, user accounts, and the logic behind the scenes. Our choices here are:
+- **shadcn/ui**
+  - A set of pre-built React components styled with Tailwind. Speeds up development of forms (transaction entry), tables (customer lists), and charts (dashboard analytics).
+
+- **Tailwind CSS**
+  - A utility-first styling framework. We write short class names to style elements, making the design process fast and consistent.
+  - Includes built-in support for dark mode, so cashiers can work comfortably in low-light environments.
+
+- **Recharts (optional for charts)**
+  - A friendly charting library that lets you visualize data like daily transaction volumes or profit/loss by currency.
+
+## Backend Technologies
+
+These choices power the core logic, data storage, and secure actions behind the scenes:
 
 - **Next.js API Routes**
-  - Allows us to write server-side code (`route.ts` files) alongside our frontend in the same project.
-  - Runs on Node.js, so we can handle requests like sign-up, sign-in, and data fetching in one place.
-- **Node.js Runtime**
-  - The JavaScript environment on the server that executes our API routes.
-- **bcrypt** (npm package)
-  - A library for hashing passwords securely before storing them.
-  - Ensures that even if someone got access to our data, raw passwords aren’t visible.
-- **(Optional) NextAuth.js or JWT**
-  - While this starter kit shows a custom authentication flow, it can easily integrate services like NextAuth.js for email-based login or JWT (JSON Web Tokens) for stateless sessions.
+  - Lets us create server-side endpoints inside the same codebase (e.g., `/api/transactions`, `/api/rates`).
+  - All validation, database updates, and PDF generation happen here, keeping sensitive logic off the client.
 
-These components work together to receive user credentials, verify or store them securely, manage sessions or tokens, and deliver protected data back to the frontend.
+- **Better Auth**
+  - Handles user registration, login, session management, and role-based access (Admin, Kasir, Auditor).
+  - Extensible so you can enforce who can view reports, who can perform transactions, etc.
 
-## 3. Infrastructure and Deployment
-Infrastructure covers where and how we host the app, as well as how changes get delivered:
+- **PostgreSQL**
+  - A reliable, open-source relational database. Stores all core data: currencies, customers, transactions, inventory, and audit logs.
 
-- **Git & GitHub**
-  - Version control system (Git) and remote hosting (GitHub) keep track of all code changes and allow team collaboration.
-- **Vercel (or Netlify)**
-  - A popular hosting service optimized for Next.js, with one-click deployments and global content delivery.
-  - Automatically rebuilds and deploys the site whenever code is pushed to the main branch.
-- **GitHub Actions (CI/CD)**
-  - Automates tasks like linting (ESLint), formatting (Prettier), and running any tests you add.
-  - Ensures that only clean, tested code goes live.
+- **Drizzle ORM**
+  - A type-safe way to define your database schema and run queries in TypeScript.
+  - Reduces common SQL mistakes and ensures your queries match your data structures.
 
-Together, these tools provide a reliable, scalable setup where every code change is tested and deployed quickly, with minimal manual work.
+- **PDF Generation (e.g., `pdf-lib` or `react-pdf`)**
+  - Used in server code to create printable transaction receipts (nota transaksi) on demand.
 
-## 4. Third-Party Integrations
-While this starter kit is minimal by design, it already includes or can easily add:
+## Infrastructure and Deployment
 
-- **bcrypt**
-  - For secure password hashing (included as an npm dependency).
-- **NextAuth.js** (optional)
-  - A full-featured authentication library supporting email/password, OAuth, and more.
-- **Sentry or LogRocket** (optional)
-  - For real-time error tracking and performance monitoring in production.
+Our infrastructure choices make the app reliable, scalable, and easy to work on:
 
-These integrations help extend the app’s capabilities without building every feature from scratch.
+- **Docker & Docker Compose**
+  - Package the application and database into containers so everyone on the team runs the same environment.
+  - Simplifies moving from development to staging to production—no “it works on my machine” surprises.
 
-## 5. Security and Performance Considerations
-We’ve baked in several measures to keep users safe and the app running smoothly:
+- **Environment Variables (.env files)**
+  - Store sensitive data (database URLs, API keys) outside of code. Each environment (dev, test, prod) can have its own settings.
 
-Security:
-- Passwords are never stored in plain text—bcrypt hashes them with a random salt.
-- API routes can implement CSRF protection and input validation to block malicious requests.
-- Session tokens or cookies are marked secure and HttpOnly to prevent theft via JavaScript.
+- **Version Control: Git & GitHub**
+  - Keeps track of every change, making collaboration and rollback easy.
 
-Performance:
-- Server-side rendering (SSR) and static site generation (SSG) in Next.js deliver pages faster.
-- Code splitting and lazy-loaded components ensure users only download what they need.
-- Global CSS and theme files are small and cached by the browser for quick repeat visits.
+- **CI/CD with GitHub Actions**
+  - Automates testing, builds, and deployments. Every push to `main` can trigger a fresh Docker build and deploy to your production server.
 
-These strategies work together to give users a fast, secure experience every time.
+- **Hosting Options**
+  - You can deploy Docker containers to services like AWS ECS, DigitalOcean App Platform, or even use Vercel (next-on-vercel) for the frontend and serverless functions.
 
-## 6. Conclusion and Overall Tech Stack Summary
-In building **codeguide-starter**, we chose technologies that:
+## Third-Party Integrations
 
-- Align with modern web standards (Next.js, React, TypeScript).
-- Provide a clear, file-based project structure for rapid onboarding.
-- Offer built-in support for server-side rendering, API routes, and static assets.
-- Emphasize security through password hashing, session management, and safe defaults.
-- Enable easy scaling and future enhancements via modular code and optional integrations.
+These services add extra power and connectivity to the application:
 
-This stack strikes a balance between simplicity for newcomers and flexibility for experienced teams. It accelerates development of a secure authentication flow and a polished dashboard, while leaving room to plug in databases, test suites, and advanced features as the project grows.
+- **Exchange Rate API (e.g., Bank Indonesia API)**
+  - Automatically fetch current buy/sell rates so your cashiers always have up-to-date information.
+
+- **QRIS Payment Gateway**
+  - Integrate local digital payments so customers can pay via national QR codes.
+
+- **Analytics (e.g., Google Analytics)**
+  - Track usage patterns on your dashboard to see which features are most popular or where users get stuck.
+
+- **Cron Jobs / Background Tasks**
+  - Use Vercel Cron Jobs or a lightweight scheduler to pull rates periodically, keeping your data fresh without slowing down user requests.
+
+## Security and Performance Considerations
+
+We built in these measures to protect user data and keep the app running smoothly:
+
+- **Role-Based Access Control (RBAC)**
+  - Leverage Better Auth to restrict routes and API endpoints based on user roles (only Admins see audit logs, only Kasirs perform day-to-day transactions).
+
+- **Secure Session Handling**
+  - Sessions or JWTs stored in HttpOnly cookies to prevent cross-site scripting attacks.
+
+- **Database Transactions**
+  - Wrap related operations (record transaction + update inventory) in a single database transaction using Drizzle, ensuring data integrity.
+
+- **Type Safety**
+  - TypeScript + Drizzle ORM catches errors at compile time, reducing runtime bugs.
+
+- **Centralized Error Handling**
+  - A unified strategy for catching and reporting server errors, so users see friendly messages and issues can be logged for investigation.
+
+- **Performance Optimizations**
+  - Server-side rendering for pages that need fresh data (e.g., transaction history).
+  - Caching strategies (in-memory or CDN) for static assets and infrequently changing data.
+  - Lazy loading of components and charts to speed up initial page loads.
+
+- **Testing**
+  - **Unit Tests** with Vitest or Jest for core logic (calculations, role checks).
+  - **End-to-End Tests** with Playwright or Cypress for user flows like logging in and making a transaction.
+
+## Conclusion and Overall Tech Stack Summary
+
+At its core, the `moneychanger-fullstack-kit` brings together a proven set of technologies to help you build a secure, maintainable, and high-performing money exchanger system:
+
+- A **modern frontend** powered by Next.js, React 19, TypeScript, shadcn/ui, and Tailwind CSS for a sleek, responsive UI.
+- A **robust backend** based on Next.js API Routes, Better Auth, PostgreSQL, and Drizzle ORM, ensuring data integrity and secure operations.
+- **Containerized infrastructure** with Docker, environment variable management, and automated CI/CD to streamline development and deployment.
+- **Third-party integrations** for real-time exchange rates, digital payments, and analytics—so your app remains connected and up-to-date.
+- **Built-in security** and **performance optimizations** to protect user data, enforce proper access, and deliver a fast user experience.
+
+Together, these choices form a solid foundation. You can now focus on the unique business logic of your Money Changer—like custom reporting, advanced auditing, and tailored customer workflows—while relying on this kit for all the common plumbing and best practices.
